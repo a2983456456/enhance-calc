@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <title>最佳卷軸選擇工具</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; max-width: 600px; margin: auto; }
+    input { width: 80px; margin-right: 8px; }
+    .scroll { margin-bottom: 8px; }
+  </style>
+</head>
+<body>
+  <h1>最佳卷軸選擇工具</h1>
+  <div>
+    <label>初始屬性：<input type="number" id="start" value="18"></label><br>
+    <label>剩餘次數：<input type="number" id="remain" value="7"></label><br>
+    <label>目標屬性：<input type="number" id="goal" value="37"></label><br>
+    <h2>卷軸設定</h2>
+    <div id="scrolls">
+      <div class="scroll">
+        卷軸 1：成功率 <input type="number" value="60">% + <input type="number" value="3"> 屬性
+      </div>
+      <div class="scroll">
+        卷軸 2：成功率 <input type="number" value="10">% + <input type="number" value="8"> 屬性
+      </div>
+      <div class="scroll">
+        卷軸 3：成功率 <input type="number" value="100">% + <input type="number" value="1"> 屬性
+      </div>
+    </div>
+    <button onclick="compute()">計算最佳選擇</button>
+    <p id="result"></p>
+  </div>
+
+  <script>
+    function computeProbability(start, remain, goal, scrolls) {
+      const cache = new Map();
+
+      function helper(ap, left) {
+        const key = `${ap}-${left}`;
+        if (cache.has(key)) return cache.get(key);
+        if (left === 0) return ap >= goal ? 1 : 0;
+
+        let best = 0;
+        for (const scroll of scrolls) {
+          const prob = scroll.rate * helper(ap + scroll.gain, left - 1) +
+                       (1 - scroll.rate) * helper(ap, left - 1);
+          best = Math.max(best, prob);
+        }
+        cache.set(key, best);
+        return best;
+      }
+
+      return helper(start, remain);
+    }
+
+    function compute() {
+      const start = parseInt(document.getElementById('start').value);
+      const remain = parseInt(document.getElementById('remain').value);
+      const goal = parseInt(document.getElementById('goal').value);
+      const scrollInputs = document.querySelectorAll('#scrolls .scroll');
+
+      const scrolls = Array.from(scrollInputs).map(div => {
+        const inputs = div.querySelectorAll('input');
+        return {
+          rate: parseFloat(inputs[0].value) / 100,
+          gain: parseInt(inputs[1].value),
+          label: `${inputs[0].value}%卷`
+        };
+      });
+
+      let bestProb = 0;
+      let bestLabel = "";
+      let allResults = [];
+
+      for (let i = 0; i < scrolls.length; i++) {
+        const newScrolls = [...scrolls];
+        const chosen = newScrolls[i];
+
+        const prob = chosen.rate * computeProbability(start + chosen.gain, remain - 1, goal, newScrolls) +
+                     (1 - chosen.rate) * computeProbability(start, remain - 1, goal, newScrolls);
+
+        allResults.push(`${chosen.label} → ${(prob * 100).toFixed(2)}%機率達到${goal}屬性`);
+
+        if (prob > bestProb) {
+          bestProb = prob;
+          bestLabel = chosen.label;
+        }
+      }
+
+      const resultText = `當前最佳選擇為 ${bestLabel}<br><br>` + allResults.join("<br>");
+      document.getElementById('result').innerHTML = resultText;
+    }
+  </script>
+</body>
+</html>
